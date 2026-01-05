@@ -2,7 +2,7 @@
  * @Author: vincent shixinchenhg@icloud.com
  * @Date: 2026-01-04 16:48:11
  * @LastEditors: vincent shixinchenhg@icloud.com
- * @LastEditTime: 2026-01-04 16:51:11
+ * @LastEditTime: 2026-01-05 12:16:39
  * @FilePath: /nextjs-project/full-stack-app-demo/database/booking.model.ts
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -46,34 +46,31 @@ const BookingSchema = new Schema<IBooking>(
 );
 
 // Pre-save hook to validate events exists before creating booking
-BookingSchema.pre(
-	// @ts-expect-error - Mongoose 9 type definitions issue with pre hooks
-	"save",
-	async function (this: IBooking, next: (error?: Error) => void) {
-		// Only validate eventId if it's new or modified
-		if (this.isModified("eventId") || this.isNew) {
-			try {
-				const eventExists = await Event.findById(this.eventId).select("_id");
+BookingSchema.pre("save", async function (this: IBooking) {
+	// Only validate eventId if it's new or modified
+	if (this.isModified("eventId") || this.isNew) {
+		try {
+			const eventExists = await Event.findById(this.eventId).select("_id");
 
-				if (!eventExists) {
-					const error = new Error(
-						`Event with ID ${this.eventId} does not exist`
-					);
-					error.name = "ValidationError";
-					return next(error);
-				}
-			} catch {
-				const validationError = new Error(
-					"Invalid events ID format or database error"
-				);
-				validationError.name = "ValidationError";
-				return next(validationError);
+			if (!eventExists) {
+				const error = new Error(`Event with ID ${this.eventId} does not exist`);
+				error.name = "ValidationError";
+				throw error;
 			}
+		} catch (error) {
+			// If it's already a ValidationError, re-throw it
+			if (error instanceof Error && error.name === "ValidationError") {
+				throw error;
+			}
+			// Otherwise, wrap it in a ValidationError
+			const validationError = new Error(
+				"Invalid events ID format or database error"
+			);
+			validationError.name = "ValidationError";
+			throw validationError;
 		}
-
-		next();
 	}
-);
+});
 
 // Create index on eventId for faster queries
 BookingSchema.index({ eventId: 1 });

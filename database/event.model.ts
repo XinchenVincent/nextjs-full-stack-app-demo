@@ -110,8 +110,7 @@ const EventSchema = new Schema<IEvent>(
 );
 
 // Pre-save hook for slug generation and data normalization
-// @ts-expect-error - Mongoose 9 type definitions issue with pre hooks
-EventSchema.pre("save", function (this: IEvent, next: () => void) {
+EventSchema.pre("save", async function (this: IEvent) {
 	// Generate slug only if title changed or document is new
 	if (this.isModified("title") || this.isNew) {
 		this.slug = generateSlug(this.title);
@@ -126,8 +125,6 @@ EventSchema.pre("save", function (this: IEvent, next: () => void) {
 	if (this.isModified("time")) {
 		this.time = normalizeTime(this.time);
 	}
-
-	next();
 });
 
 // Helper function to generate URL-friendly slug
